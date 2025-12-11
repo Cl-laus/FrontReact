@@ -1,0 +1,68 @@
+
+services:
+  # Conteneur de développement
+  php:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api_php
+    working_dir: /app
+    volumes:
+      - .:/app
+    ports:
+      - "8000:8000"
+    depends_on:
+      - api_db
+    env_file:
+      - .env.dev
+
+  # Base de données dev
+  api_db:
+    container_name: api_db
+    image: mariadb:10.9
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: api_platform
+      MYSQL_USER: api_user
+      MYSQL_PASSWORD: secret
+    volumes:
+      - db_data:/var/lib/mysql
+
+
+
+
+  # Conteneur pour tests automatisés
+  php_test:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: api_php_test
+    working_dir: /app
+    volumes:
+      - .:/app
+    depends_on:
+      - db_test
+    command: >
+      sh -c "
+      php bin/console doctrine:database:drop --force --env=test &&
+      php bin/console doctrine:database:create --env=test &&
+      php bin/console doctrine:migrations:migrate -q --env=test &&
+      php bin/console doctrine:fixtures:load -q --env=test &&
+      php bin/phpunit &&
+      php bin/console doctrine:database:drop --force --env=test"
+    env_file:
+      - .env.test
+
+  # Base de données pour tests
+  db_test:
+    image: mariadb:10.9
+    container_name: api_db_test
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: api_platform_test
+    volumes:
+      - db_data_test:/var/lib/mysql
+
+volumes:
+  db_data:
+  db_data_test:
